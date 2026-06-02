@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中二歷史百萬富翁</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: radial-gradient(circle at center, #1a237e 0%, #000000 100%);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        .millionaire-btn {
+            background: linear-gradient(to bottom, #000066 0%, #0000cc 50%, #000066 100%);
+            border: 2px solid #cccc00;
+            border-radius: 50px;
+            box-shadow: inset 0 0 10px #000, 0 0 5px #cccc00;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .millionaire-btn::before, .millionaire-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 20px;
+            height: 2px;
+            background: #cccc00;
+        }
+        .millionaire-btn::before { left: -20px; }
+        .millionaire-btn::after { right: -20px; }
+        .millionaire-btn:hover:not(:disabled) {
+            background: linear-gradient(to bottom, #003399 0%, #0066ff 50%, #003399 100%);
+            cursor: pointer;
+            transform: scale(1.02);
+        }
+        .millionaire-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #666;
+            box-shadow: none;
+        }
+        .millionaire-btn:disabled::before, .millionaire-btn:disabled::after { background: #666; }
+        
+        .answer-btn {
+            clip-path: polygon(5% 0%, 95% 0%, 100% 50%, 95% 100%, 5% 100%, 0% 50%);
+            padding: 15px 30px;
+            margin: 10px 0;
+            border: 2px solid white;
+            background: linear-gradient(to bottom, #000033, #000099);
+            transition: all 0.3s;
+            text-align: left;
+            position: relative;
+        }
+        .answer-btn:hover:not(:disabled) {
+            background: linear-gradient(to bottom, #cc7a00, #ff9900); /* Hover Orange */
+            cursor: pointer;
+        }
+        .answer-selected { background: linear-gradient(to bottom, #cc7a00, #ff9900) !important; }
+        .answer-correct { background: linear-gradient(to bottom, #006600, #00cc00) !important; animation: blink-green 0.5s 3; }
+        .answer-wrong { background: linear-gradient(to bottom, #660000, #cc0000) !important; }
+        .answer-hidden { visibility: hidden; }
+        
+        @keyframes blink-green {
+            0% { background: linear-gradient(to bottom, #006600, #00cc00); }
+            50% { background: linear-gradient(to bottom, #cc7a00, #ff9900); }
+            100% { background: linear-gradient(to bottom, #006600, #00cc00); }
+        }
+
+        .prize-ladder { background: rgba(0,0,50,0.8); border: 1px solid #0055ff; }
+        .prize-item { padding: 4px 10px; border-radius: 4px; }
+        .prize-current { background-color: #ff9900; color: #000; font-weight: bold; }
+        .prize-safe { color: #cccc00; font-weight: bold; }
+        .prize-past { color: #888; }
+
+        .modal-bg { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); }
+        
+        /* Bar chart for audience */
+        .bar-container { display: flex; align-items: flex-end; height: 150px; gap: 10px; margin-top: 20px;}
+        .bar-wrapper { display: flex; flex-direction: column; align-items: center; width: 25%; }
+        .bar { width: 100%; background: linear-gradient(to top, #0055ff, #00aaff); border-radius: 4px 4px 0 0; transition: height 1s ease-out;}
+        .bar-label { margin-top: 5px; font-weight: bold;}
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-center">
+
+    <!-- 填寫資料畫面 -->
+    <div id="intro-screen" class="w-full max-w-md p-8 bg-gray-900 bg-opacity-90 rounded-2xl border-2 border-yellow-500 shadow-2xl text-center z-10">
+        <h1 class="text-3xl font-bold text-yellow-400 mb-6 tracking-wider">中二歷史<br><span class="text-5xl mt-2 block text-white drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]">百萬富翁</span></h1>
+        <p class="text-gray-300 mb-6">溫習範圍：三國鼎立至唐安史之亂</p>
+        <div class="space-y-4 mb-6 text-left">
+            <div>
+                <label class="block text-sm font-medium text-gray-400">班別</label>
+                <input type="text" id="student-class" placeholder="例: 1A" class="w-full mt-1 p-2 bg-gray-800 border border-gray-600 rounded text-white focus:outline-none focus:border-yellow-400">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400">學號</label>
+                <input type="number" id="student-number" placeholder="例: 35" class="w-full mt-1 p-2 bg-gray-800 border border-gray-600 rounded text-white focus:outline-none focus:border-yellow-400">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400">姓名</label>
+                <input type="text" id="student-name" placeholder="例: 陳大文" class="w-full mt-1 p-2 bg-gray-800 border border-gray-600 rounded text-white focus:outline-none focus:border-yellow-400">
+            </div>
+        </div>
+        <button onclick="startGame()" class="millionaire-btn w-full py-3 text-xl font-bold text-yellow-300">開始挑戰</button>
+        <p id="form-error" class="text-red-500 mt-2 hidden text-sm">請填寫所有資料！</p>
+    </div>
+
+    <!-- 遊戲主要畫面 -->
+    <div id="game-screen" class="hidden w-full h-full max-w-6xl mx-auto flex flex-col md:flex-row p-4 gap-4">
+        
+        <!-- 左側：主要問答區 -->
+        <div class="flex-1 flex flex-col justify-between">
+            <!-- 頂部資訊列 -->
+            <div class="flex justify-between items-center mb-4 bg-blue-900 bg-opacity-50 p-4 rounded-xl border border-blue-500">
+                <div class="text-yellow-400 font-bold text-xl"><i class="fas fa-user-graduate mr-2"></i><span id="display-name"></span></div>
+                <div class="text-white font-bold text-2xl flex items-center"><i class="fas fa-stopwatch mr-2 text-blue-300"></i><span id="timer-display">00:00</span></div>
+                
+                <!-- 錦囊區 -->
+                <div class="flex gap-2">
+                    <button id="btn-5050" onclick="use5050()" class="w-12 h-12 rounded-full border-2 border-yellow-400 bg-blue-800 text-yellow-400 font-bold hover:bg-blue-700 transition">50:50</button>
+                    <button id="btn-audience" onclick="useAudience()" class="w-12 h-12 rounded-full border-2 border-yellow-400 bg-blue-800 text-yellow-400 font-bold hover:bg-blue-700 transition"><i class="fas fa-users"></i></button>
+                    <button id="btn-friend" onclick="useFriend()" class="w-12 h-12 rounded-full border-2 border-yellow-400 bg-blue-800 text-yellow-400 font-bold hover:bg-blue-700 transition"><i class="fas fa-phone"></i></button>
+                </div>
+            </div>
+
+            <!-- 問題區 -->
+            <div class="flex-1 flex items-center justify-center mb-8">
+                <div class="w-full border-2 border-white rounded-xl bg-gradient-to-b from-blue-900 to-blue-950 p-8 text-center shadow-[0_0_20px_rgba(0,100,255,0.5)]">
+                    <h2 class="text-yellow-500 font-bold mb-2">第 <span id="q-number">1</span> 題 <span id="q-difficulty" class="text-sm ml-2 text-gray-400"></span></h2>
+                    <p id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed">題目載入中...</p>
+                </div>
+            </div>
+
+            <!-- 答案區 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-x-12 mb-4 w-full px-8">
+                <button id="ans-0" onclick="selectAnswer(0)" class="answer-btn text-lg md:text-xl"><span class="text-yellow-500 font-bold mr-4">A:</span><span id="text-0"></span></button>
+                <button id="ans-1" onclick="selectAnswer(1)" class="answer-btn text-lg md:text-xl"><span class="text-yellow-500 font-bold mr-4">B:</span><span id="text-1"></span></button>
+                <button id="ans-2" onclick="selectAnswer(2)" class="answer-btn text-lg md:text-xl"><span class="text-yellow-500 font-bold mr-4">C:</span><span id="text-2"></span></button>
+                <button id="ans-3" onclick="selectAnswer(3)" class="answer-btn text-lg md:text-xl"><span class="text-yellow-500 font-bold mr-4">D:</span><span id="text-3"></span></button>
+            </div>
+        </div>
+
+        <!-- 右側：獎金梯 -->
+        <div class="w-full md:w-64 prize-ladder rounded-xl p-4 flex flex-col-reverse text-right font-mono text-sm md:text-base overflow-y-auto max-h-[30vh] md:max-h-full">
+            <!-- 由 JS 動態生成 -->
+        </div>
+    </div>
+
+    <!-- 錦囊 Modal：問觀眾 -->
+    <div id="modal-audience" class="hidden fixed inset-0 modal-bg z-50 flex items-center justify-center p-4">
+        <div class="bg-blue-900 border-2 border-yellow-400 rounded-xl p-8 max-w-md w-full text-center shadow-2xl">
+            <h3 class="text-2xl font-bold text-yellow-400 mb-4"><i class="fas fa-users mr-2"></i>現場觀眾投票結果</h3>
+            <div class="bar-container" id="audience-chart">
+                <!-- 柱狀圖由 JS 產生 -->
+            </div>
+            <button onclick="closeModal('modal-audience')" class="mt-8 bg-gray-700 hover:bg-gray-600 text-white py-2 px-6 rounded-full font-bold">明白</button>
+        </div>
+    </div>
+
+    <!-- 錦囊 Modal：問朋友 -->
+    <div id="modal-friend" class="hidden fixed inset-0 modal-bg z-50 flex items-center justify-center p-4">
+        <div class="bg-blue-900 border-2 border-yellow-400 rounded-xl p-8 max-w-md w-full text-center shadow-2xl">
+            <h3 class="text-2xl font-bold text-yellow-400 mb-4"><i class="fas fa-phone-volume mr-2"></i>打電話問朋友</h3>
+            <div class="bg-black bg-opacity-50 p-4 rounded-lg text-left italic mb-6">
+                <p id="friend-text" class="text-green-400 text-lg">「喂？呢題我估應該係...」</p>
+            </div>
+            <button onclick="closeModal('modal-friend')" class="mt-4 bg-gray-700 hover:bg-gray-600 text-white py-2 px-6 rounded-full font-bold">謝謝</button>
+        </div>
+    </div>
+
+    <!-- 結算畫面 -->
+    <div id="result-screen" class="hidden w-full max-w-lg p-8 bg-gray-900 bg-opacity-95 rounded-2xl border-4 border-yellow-500 shadow-[0_0_30px_rgba(255,215,0,0.5)] text-center z-10">
+        <h1 id="result-title" class="text-4xl font-bold text-yellow-400 mb-2">遊戲結束</h1>
+        <p id="result-subtitle" class="text-xl text-gray-300 mb-8">感謝你的參與！</p>
+        
+        <div class="bg-black bg-opacity-50 rounded-xl p-6 mb-6 text-left border border-gray-700">
+            <p class="text-gray-400 mb-2">姓名：<span id="res-name" class="text-white font-bold text-xl float-right"></span></p>
+            <p class="text-gray-400 mb-2">答對題數：<span id="res-q" class="text-white font-bold text-xl float-right"></span></p>
+            <p class="text-gray-400 mb-2">使用時間：<span id="res-time" class="text-white font-bold text-xl float-right"></span></p>
+            <div class="h-px w-full bg-gray-700 my-4"></div>
+            <p class="text-yellow-500 font-bold text-xl">最終獲得獎金：<br><span id="res-prize" class="text-4xl text-yellow-400 block text-right mt-2 drop-shadow-md"></span></p>
+        </div>
+
+        <div id="upload-status" class="text-sm font-bold p-3 rounded-lg mb-6 bg-blue-900 text-blue-200">
+            <i class="fas fa-spinner fa-spin mr-2"></i>成績上傳至老師資料庫中...
+        </div>
+
+        <button onclick="location.reload()" class="millionaire-btn px-8 py-3 text-lg font-bold text-white">再玩一次</button>
+    </div>
+
+    <script>
+        // --- 老師請注意：在此處替換您的 Google Apps Script 網址 ---
+        // 教學在對話框下方
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzWXbAC7ivQ491B43MNDSG3b4N2GUS7JJWxm-H_n67PU82kT1z226MKHXSSotOWYON-Tw/exec"; 
+        
+        // ------------------ 題庫設定 (共60題) ------------------
+        const database = {
+            easy: [
+                { q: "滿清自視為天朝，因物資豐盛，能自給自足，故不重視什麼？", options: ["農業", "貿易", "軍事", "外交"], ans: 1 },
+                { q: "英國因歷經什麼事件，以機器取代人力，產量大增，需要尋求海外市場？", options: ["文藝復興", "宗教改革", "工業革命", "法國大革命"], ans: 2 },
+                { q: "英國為了扭轉貿易虧損，對華輸出什麼物品？", options: ["絲綢", "茶葉", "鴉片", "瓷器"], ans: 2 },
+                { q: "道光帝派誰前往廣州禁煙，並在虎門銷煙？", options: ["曾國藩", "李鴻章", "林則徐", "左宗棠"], ans: 2 },
+                { q: "英法聯軍攻入北京後，火燒了哪座皇家園林？", options: ["頤和園", "圓明園", "承德避暑山莊", "故宮"], ans: 1 },
+                { q: "英法聯軍戰敗後，清廷簽訂《北京條約》，割讓了哪裡？", options: ["香港島", "九龍半島", "新界", "台灣"], ans: 1 },
+                { q: "太平天國由誰創立？", options: ["洪秀全", "康有為", "梁啟超", "袁世凱"], ans: 0 },
+                { q: "太平天國以哪一種西方宗教思想為主導？", options: ["天主教", "伊斯蘭教", "基督教", "東正教"], ans: 2 },
+                { q: "提出洋務運動的官員中，包括恭親王奕訢、李鴻章和誰？", options: ["林則徐", "曾國藩", "康有為", "袁世凱"], ans: 1 },
+                { q: "洋務運動以學習洋人的什麼為主？", options: ["政治制度", "軍事科技", "文化教育", "經濟體制"], ans: 1 },
+                { q: "中日甲午戰爭爆發，滿清敗給日本，哪支艦隊全軍覆沒？", options: ["北洋艦隊", "南洋艦隊", "福建水師", "廣東水師"], ans: 0 },
+                { q: "甲午戰爭後，清廷與日本簽訂了哪一條不平等條約？", options: ["南京條約", "北京條約", "馬關條約", "辛丑條約"], ans: 2 },
+                { q: "馬關條約規定滿清需要賠償多少白銀？", options: ["二千萬兩", "一億兩", "二億兩", "四億五千萬兩"], ans: 2 },
+                { q: "戊戌維新時，光緒帝起用了哪兩位主要人物進行變法？", options: ["曾國藩、李鴻章", "康有為、梁啟超", "林則徐、魏源", "孫中山、黃興"], ans: 1 },
+                { q: "戊戌政變是由誰發動，最終幽禁了光緒帝？", options: ["袁世凱", "李鴻章", "慈禧太后", "恭親王奕訢"], ans: 2 }
+            ],
+            medium: [
+                { q: "滿清對貿易有諸多限制，例如只開放哪裡作「一口通商」？", options: ["上海", "廣州", "廈門", "福州"], ans: 1 },
+                { q: "英國派馬甘尼和亞美士德等使團覲見天子，卻因什麼事件終告失敗？", options: ["鴉片問題", "禮儀之爭", "領土糾紛", "關稅問題"], ans: 1 },
+                { q: "鴉片戰爭後，英國藉口什麼事件，發動了英法聯軍之役？", options: ["馬神父事件", "虎門銷煙", "亞羅號事件", "天津教案"], ans: 2 },
+                { q: "太平天國攻佔南京後，將其改名為什麼？", options: ["北京", "西京", "東京", "天京"], ans: 3 },
+                { q: "為了平定太平天國，漢人地方官員組織了什麼軍隊？", options: ["八旗軍", "綠營兵", "湘軍、淮軍", "北洋新軍"], ans: 2 },
+                { q: "太平天國實施了創新的政策，包括反對吸食鴉片、禁止纏足，以及推行什麼制度？", options: ["均田制", "天朝田畝制度", "井田制", "兩稅法"], ans: 1 },
+                { q: "洋務運動的宗旨在於什麼？", options: ["全盤西化", "師夷長技以制夷", "驅除韃虜，恢復中華", "民主與科學"], ans: 1 },
+                { q: "洋務運動前期以「強兵」為主，曾設立哪一個兵工廠？", options: ["漢陽鐵廠", "輪船招商局", "江南製造局", "開平礦務局"], ans: 2 },
+                { q: "洋務運動後期因資金不足，改以什麼為目標發展實業？", options: ["強兵", "富國", "民主", "立憲"], ans: 1 },
+                { q: "甲午戰爭前，日本欲將勢力擴展至清朝的哪個藩屬國作為入侵中國的踏板？", options: ["越南", "緬甸", "朝鮮", "琉球"], ans: 2 },
+                { q: "甲午戰爭的導火線，是因為兩國同時派兵保護朝鮮平息哪一場動亂？", options: ["黃巾之亂", "太平天國", "東學黨之亂", "義和團運動"], ans: 2 },
+                { q: "《馬關條約》容許日本在華設立工廠，這會對中國造成什麼影響？", options: ["促進民族工業發展", "打擊本土手工業", "增加清廷稅收", "提高農民收入"], ans: 1 },
+                { q: "甲午戰爭後，哪三國出面干涉，促成「三國還遼」？", options: ["英、法、美", "俄、德、法", "英、俄、日", "美、德、意"], ans: 1 },
+                { q: "戊戌維新中，維新派認為以往片面的軍事改革不足以救國，欲學習哪國推行「全面變法」？", options: ["英國", "美國", "德國", "日本"], ans: 3 },
+                { q: "維新派廢除科舉制中的八股文，改試什麼，引起保守派官員反對？", options: ["詩賦", "策論", "經義", "算學"], ans: 1 }
+            ],
+            hard: [
+                { q: "洋人來華不能自由買賣，滿清規定他們必須經由什麼機構進行貿易？", options: ["市舶司", "十三行(公行)", "總理衙門", "海關"], ans: 1 },
+                { q: "大量吸食鴉片導致中國白銀外流，銀價急升，最終造成什麼經濟後果？", options: ["通貨緊縮", "物價高漲，民生困苦", "政府稅收增加", "對外貿易順差"], ans: 1 },
+                { q: "鴉片戰爭後，英國未獲預期利益，以什麼為理由欲擴大在華利益？", options: ["最惠國待遇", "治外法權", "十二年修約", "門戶開放"], ans: 2 },
+                { q: "法國參與英法聯軍之役的藉口是什麼事件？", options: ["亞羅號事件", "馬神父事件", "曹州教案", "廣州入城事件"], ans: 1 },
+                { q: "太平天國除了禁止尊孔祭祖，還建立了什麼制度來吸引民眾？", options: ["聖庫", "科舉", "內閣", "軍機處"], ans: 0 },
+                { q: "洋務運動中設立的「同文館」主要是負責什麼工作？", options: ["研究軍事科技", "翻譯書籍及學習外文", "訓練海軍", "管理鐵路"], ans: 1 },
+                { q: "洋務運動最終未能成功，其中一個阻力是慈禧太后私用海軍軍費興建什麼？", options: ["圓明園", "故宮", "頤和園", "避暑山莊"], ans: 2 },
+                { q: "日本自哪一場改革後國力大增，成為工業化國家並產生侵略主義？", options: ["大化改新", "明治維新", "農奴制改革", "洋務運動"], ans: 1 },
+                { q: "甲午戰爭中，清軍戰敗的一個主要原因是北洋艦隊自洋務初期購入後怎樣？", options: ["被英法聯軍擊毀", "指揮官叛變", "未有更新，武裝未有妥善整備", "缺乏燃料"], ans: 2 },
+                { q: "列強在華以「最惠國待遇」為由，在中國劃分了什麼？", options: ["租界", "勢力範圍", "自治區", "特別行政區"], ans: 1 },
+                { q: "維新派推行改革時，因為裁減機構及冗員，觸犯了誰的利益？", options: ["農民", "商人", "保守派官員", "洋人"], ans: 2 },
+                { q: "光緒帝推行維新，但因沒有什麼而困難重重？", options: ["外國支持", "實權與政治經驗", "軍隊", "資金"], ans: 1 },
+                { q: "戊戌維新最終在誰的出賣下，導致慈禧太后發動政變？", options: ["康有為", "梁啟超", "袁世凱", "李鴻章"], ans: 2 },
+                { q: "戊戌維新僅維持了多少天便宣告失敗，故又稱「百日維新」？", options: ["100天", "103天", "105天", "110天"], ans: 1 },
+                { q: "戊戌維新失敗的自身原因之一是推行過快過急，頒布了多少多項改革？", options: ["100多項", "150多項", "200多項", "300多項"], ans: 2 }
+            ]
+        };
+
+        // ------------------ 遊戲狀態 ------------------
+        const prizeLadderAmounts = [
+            1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, // 1-10
+            20000, 30000, 40000, 50000, 60000, 80000, 100000, 200000, 500000, 1000000, // 11-20
+            2000000, 5000000, 10000000, 20000000, 50000000, 100000000, 200000000, 500000000, 800000000, 1000000000 // 21-30
+        ];
+        
+        let gameQuestions = [];
+        let currentQIndex = 0;
+        let lifelines = { fifty: true, audience: true, friend: true };
+        let studentData = { class: "", number: "", name: "" };
+        let timerSeconds = 0;
+        let timerInterval;
+        let isAnswering = false;
+        let guaranteedPrize = 0;
+
+        // ------------------ 初始化邏輯 ------------------
+        function startGame() {
+            const cls = document.getElementById('student-class').value.trim();
+            const num = document.getElementById('student-number').value.trim();
+            const nam = document.getElementById('student-name').value.trim();
+
+            if (!cls || !num || !nam) {
+                document.getElementById('form-error').classList.remove('hidden');
+                return;
+            }
+
+            studentData = { class: cls, number: num, name: nam };
+            document.getElementById('display-name').textContent = `${cls} (${num}) ${nam}`;
+            
+            document.getElementById('intro-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            buildGameDeck();
+            renderPrizeLadder();
+            startTimer();
+            loadQuestion();
+        }
+
+        function shuffle(array) {
+            let currentIndex = array.length,  randomIndex;
+            while (currentIndex > 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function buildGameDeck() {
+            // 從各難度隨機抽10題
+            let pEasy = shuffle([...database.easy]).slice(0, 10).map(q => ({...q, diff: 'easy'}));
+            let pMed = shuffle([...database.medium]).slice(0, 10).map(q => ({...q, diff: 'medium'}));
+            let pHard = shuffle([...database.hard]).slice(0, 10).map(q => ({...q, diff: 'hard'}));
+            
+            let rawDeck = [...pEasy, ...pMed, ...pHard];
+            
+            // 處理選項打亂，但記錄正確答案的新位置
+            gameQuestions = rawDeck.map(q => {
+                let optionsWithOriginalIndex = q.options.map((opt, idx) => ({ text: opt, originalIdx: idx }));
+                shuffle(optionsWithOriginalIndex);
+                let newAnsIdx = optionsWithOriginalIndex.findIndex(opt => opt.originalIdx === q.ans);
+                return {
+                    question: q.q,
+                    options: optionsWithOriginalIndex.map(opt => opt.text),
+                    correctIdx: newAnsIdx,
+                    diff: q.diff
+                };
+            });
+        }
+
+        function renderPrizeLadder() {
+            const ladder = document.querySelector('.prize-ladder');
+            ladder.innerHTML = '';
+            for (let i = 0; i < 30; i++) {
+                let div = document.createElement('div');
+                div.className = 'prize-item flex justify-between';
+                div.id = `prize-${i}`;
+                
+                let num = document.createElement('span');
+                num.textContent = 30 - i;
+                
+                let amt = document.createElement('span');
+                amt.textContent = '$' + prizeLadderAmounts[29 - i].toLocaleString();
+                
+                // 保險線標記
+                if (29 - i === 9 || 29 - i === 19 || 29-i === 29) {
+                    div.classList.add('prize-safe');
+                }
+                
+                div.appendChild(num);
+                div.appendChild(amt);
+                ladder.appendChild(div);
+            }
+            updateLadderUI();
+        }
+
+        function updateLadderUI() {
+            document.querySelectorAll('.prize-item').forEach(el => {
+                el.classList.remove('prize-current', 'prize-past');
+            });
+            const currentDiv = document.getElementById(`prize-${29 - currentQIndex}`);
+            if(currentDiv) currentDiv.classList.add('prize-current');
+            
+            for(let i = 29 - currentQIndex + 1; i < 30; i++){
+                const pastDiv = document.getElementById(`prize-${i}`);
+                if(pastDiv) pastDiv.classList.add('prize-past');
+            }
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                const m = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+                const s = (timerSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('timer-display').textContent = `${m}:${s}`;
+            }, 1000);
+        }
+
+        // ------------------ 遊戲流程 ------------------
+        function loadQuestion() {
+            isAnswering = false;
+            updateLadderUI();
+            
+            const q = gameQuestions[currentQIndex];
+            document.getElementById('q-number').textContent = currentQIndex + 1;
+            
+            let diffText = q.diff === 'easy' ? '淺' : (q.diff === 'medium' ? '中' : '深');
+            document.getElementById('q-difficulty').textContent = `(難度：${diffText})`;
+            document.getElementById('question-text').textContent = q.question;
+
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`ans-${i}`);
+                btn.classList.remove('answer-selected', 'answer-correct', 'answer-wrong', 'answer-hidden');
+                btn.disabled = false;
+                document.getElementById(`text-${i}`).textContent = q.options[i];
+            }
+
+            // 更新保險線
+            if (currentQIndex === 10) guaranteedPrize = 10000;
+            if (currentQIndex === 20) guaranteedPrize = 1000000;
+        }
+
+        function selectAnswer(idx) {
+            if (isAnswering) return;
+            isAnswering = true;
+
+            // 禁用所有按鈕並標示選擇
+            for(let i=0; i<4; i++) document.getElementById(`ans-${i}`).disabled = true;
+            document.getElementById('btn-5050').disabled = true;
+            document.getElementById('btn-audience').disabled = true;
+            document.getElementById('btn-friend').disabled = true;
+
+            const selectedBtn = document.getElementById(`ans-${idx}`);
+            selectedBtn.classList.add('answer-selected');
+
+            // 營造緊張氣氛，延遲 2 秒開估
+            setTimeout(() => {
+                const q = gameQuestions[currentQIndex];
+                if (idx === q.correctIdx) {
+                    // 答對
+                    selectedBtn.classList.remove('answer-selected');
+                    selectedBtn.classList.add('answer-correct');
+                    
+                    setTimeout(() => {
+                        currentQIndex++;
+                        if (currentQIndex >= 30) {
+                            endGame(true); // 全破！
+                        } else {
+                            restoreLifelinesBtn();
+                            loadQuestion();
+                        }
+                    }, 2000);
+                } else {
+                    // 答錯
+                    selectedBtn.classList.remove('answer-selected');
+                    selectedBtn.classList.add('answer-wrong');
+                    document.getElementById(`ans-${q.correctIdx}`).classList.add('answer-correct'); // 顯示正確答案
+                    
+                    setTimeout(() => {
+                        endGame(false);
+                    }, 2500);
+                }
+            }, 2000);
+        }
+
+        function restoreLifelinesBtn() {
+            document.getElementById('btn-5050').disabled = !lifelines.fifty;
+            document.getElementById('btn-audience').disabled = !lifelines.audience;
+            document.getElementById('btn-friend').disabled = !lifelines.friend;
+        }
+
+        // ------------------ 錦囊功能 ------------------
+        function use5050() {
+            if (!lifelines.fifty || isAnswering) return;
+            lifelines.fifty = false;
+            document.getElementById('btn-5050').disabled = true;
+            document.getElementById('btn-5050').classList.add('opacity-30');
+
+            const correctIdx = gameQuestions[currentQIndex].correctIdx;
+            let wrongIndices = [0, 1, 2, 3].filter(i => i !== correctIdx);
+            wrongIndices = shuffle(wrongIndices);
+            
+            // 隱藏兩個錯誤答案
+            document.getElementById(`ans-${wrongIndices[0]}`).classList.add('answer-hidden');
+            document.getElementById(`ans-${wrongIndices[1]}`).classList.add('answer-hidden');
+            document.getElementById(`ans-${wrongIndices[0]}`).disabled = true;
+            document.getElementById(`ans-${wrongIndices[1]}`).disabled = true;
+        }
+
+        function useAudience() {
+            if (!lifelines.audience || isAnswering) return;
+            lifelines.audience = false;
+            document.getElementById('btn-audience').disabled = true;
+            document.getElementById('btn-audience').classList.add('opacity-30');
+
+            const q = gameQuestions[currentQIndex];
+            const correctIdx = q.correctIdx;
+            
+            // 決定正確率
+            let correctPercent;
+            if (q.diff === 'easy') correctPercent = Math.floor(Math.random() * 21) + 70; // 70-90%
+            else if (q.diff === 'medium') correctPercent = Math.floor(Math.random() * 21) + 45; // 45-65%
+            else correctPercent = Math.floor(Math.random() * 21) + 30; // 30-50%
+
+            let remaining = 100 - correctPercent;
+            let votes = [0,0,0,0];
+            votes[correctIdx] = correctPercent;
+            
+            // 隨機分配剩餘票數
+            let wrongIndices = [0,1,2,3].filter(i => i !== correctIdx);
+            
+            // 如果用了 5050，只分配給剩下的錯誤答案
+            if(document.getElementById(`ans-${wrongIndices[0]}`).classList.contains('answer-hidden')){
+                let visibleWrong = wrongIndices.find(i => !document.getElementById(`ans-${i}`).classList.contains('answer-hidden'));
+                if(visibleWrong !== undefined) votes[visibleWrong] = remaining;
+            } else {
+                let v1 = Math.floor(Math.random() * remaining);
+                let v2 = Math.floor(Math.random() * (remaining - v1));
+                let v3 = remaining - v1 - v2;
+                votes[wrongIndices[0]] = v1;
+                votes[wrongIndices[1]] = v2;
+                votes[wrongIndices[2]] = v3;
+            }
+
+            // 繪製圖表
+            const chart = document.getElementById('audience-chart');
+            chart.innerHTML = '';
+            const labels = ['A', 'B', 'C', 'D'];
+            for(let i=0; i<4; i++){
+                let wrapper = document.createElement('div');
+                wrapper.className = 'bar-wrapper';
+                let bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = '0%'; // 動畫起始
+                
+                let val = document.createElement('div');
+                val.textContent = votes[i] + '%';
+                val.className = 'text-sm font-bold text-yellow-300';
+                
+                let lbl = document.createElement('div');
+                lbl.className = 'bar-label text-white';
+                lbl.textContent = labels[i];
+
+                wrapper.appendChild(val);
+                wrapper.appendChild(bar);
+                wrapper.appendChild(lbl);
+                chart.appendChild(wrapper);
+
+                // 動畫
+                setTimeout(() => { bar.style.height = votes[i] + '%'; }, 100);
+            }
+
+            document.getElementById('modal-audience').classList.remove('hidden');
+        }
+
+        function useFriend() {
+            if (!lifelines.friend || isAnswering) return;
+            lifelines.friend = false;
+            document.getElementById('btn-friend').disabled = true;
+            document.getElementById('btn-friend').classList.add('opacity-30');
+
+            const q = gameQuestions[currentQIndex];
+            const labels = ['A', 'B', 'C', 'D'];
+            let isFriendCorrect = true;
+            
+            // 朋友正確率
+            let roll = Math.random() * 100;
+            if (q.diff === 'easy' && roll > 95) isFriendCorrect = false;
+            else if (q.diff === 'medium' && roll > 75) isFriendCorrect = false;
+            else if (q.diff === 'hard' && roll > 50) isFriendCorrect = false;
+
+            let suggestedIdx = q.correctIdx;
+            if (!isFriendCorrect) {
+                let wrongIndices = [0,1,2,3].filter(i => i !== q.correctIdx && !document.getElementById(`ans-${i}`).classList.contains('answer-hidden'));
+                suggestedIdx = wrongIndices[Math.floor(Math.random() * wrongIndices.length)];
+            }
+
+            let text = "";
+            if (q.diff === 'easy') text = `「呢題咁簡單，一定係 ${labels[suggestedIdx]} 啦！」`;
+            else if (q.diff === 'medium') text = `「我記得溫習筆記好似有講過，應該係 ${labels[suggestedIdx]}，信我！」`;
+            else text = `「嘩呢題好深... 我得一半把握，可能係 ${labels[suggestedIdx]} 啩...」`;
+
+            document.getElementById('friend-text').textContent = text;
+            document.getElementById('modal-friend').classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // ------------------ 遊戲結束與數據上傳 ------------------
+        function endGame(isWin) {
+            clearInterval(timerInterval);
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            let finalPrize = 0;
+            if (isWin) {
+                finalPrize = prizeLadderAmounts[29]; // 10億
+                document.getElementById('result-title').textContent = "恭喜你！成為十億富翁！";
+                document.getElementById('result-subtitle').textContent = "歷史之神降臨！";
+            } else {
+                finalPrize = guaranteedPrize;
+                document.getElementById('result-title').textContent = "遊戲結束";
+                document.getElementById('result-subtitle').textContent = "答錯了！請回去重溫筆記！";
+                document.getElementById('result-title').classList.replace('text-yellow-400', 'text-red-500');
+            }
+
+            document.getElementById('res-name').textContent = `${studentData.class} (${studentData.number}) ${studentData.name}`;
+            document.getElementById('res-q').textContent = `${currentQIndex} / 30 題`;
+            document.getElementById('res-time').textContent = document.getElementById('timer-display').textContent;
+            document.getElementById('res-prize').textContent = '$' + finalPrize.toLocaleString();
+
+            uploadData(finalPrize, currentQIndex);
+        }
+
+        function uploadData(prize, qs) {
+            const statusDiv = document.getElementById('upload-status');
+            
+            // 如果老師尚未設定網址，顯示提示但不報錯
+            if(GOOGLE_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbz6XcgQPFDbYyKURTL3WRNMJ4d_hX9Z9e6JMGDSNIBLsLhbhsFRuNxyQ-XkHsUWvGel/exec") {
+                statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>老師尚未連接資料庫，本次成績僅作本地顯示。';
+                statusDiv.classList.replace('bg-blue-900', 'bg-gray-800');
+                statusDiv.classList.replace('text-blue-200', 'text-gray-300');
+                return;
+            }
+
+            const data = {
+                timestamp: new Date().toLocaleString('zh-HK'),
+                class: studentData.class,
+                number: studentData.number,
+                name: studentData.name,
+                prize: prize,
+                correctQuestions: qs,
+                timeSeconds: timerSeconds
+            };
+
+            // 使用 no-cors 模式發送 POST 請求至 Google Apps Script
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-cache',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(() => {
+                statusDiv.innerHTML = '<i class="fas fa-check-circle text-green-400 mr-2"></i>成績已成功上傳給老師！';
+                statusDiv.classList.replace('bg-blue-900', 'bg-green-900');
+                statusDiv.classList.replace('text-blue-200', 'text-green-200');
+            })
+            .catch(err => {
+                statusDiv.innerHTML = '<i class="fas fa-times-circle text-red-400 mr-2"></i>上傳失敗，請截圖此畫面給老師。';
+                statusDiv.classList.replace('bg-blue-900', 'bg-red-900');
+                statusDiv.classList.replace('text-blue-200', 'text-red-200');
+            });
+        }
+    </script>
+</body>
+</html>
+millionaire_s1_updated.html
+Displaying millionaire_s1_updated.html.
